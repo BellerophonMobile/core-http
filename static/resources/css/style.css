@@ -1,0 +1,59 @@
+.palette {
+    background-position: center;
+    background-size: contain;
+}
+
+.palette-new-session {
+    background-image: url('/static/resources/images/add.png');
+    background-size: auto;
+}
+
+.palette-select {
+    background-image: url('/static/resources/images/select.png');
+    background-size: auto;
+}
+
+.palette-link {
+    background-image: url('/static/resources/images/link.png');
+    background-size: auto;
+}
+
+.palette-router {
+    background-image: url('/static/resources/images/router.png');
+}
+
+.palette-host {
+    background-image: url('/static/resources/images/host.png');
+}
+
+.palette-pc {
+    background-image: url('/static/resources/images/pc.png');
+}
+
+.palette-mdr {
+    background-image: url('/static/resources/images/mdr.png');
+}
+
+.palette-prouter {
+    background-image: url('/static/resources/images/prouter.png');
+}
+
+.palette-hub {
+    background-image: url('/static/resources/images/hub.png');
+}
+
+.palette-switch {
+    background-image: url('/static/resources/images/switch.png');
+}
+
+.palette-wlan {
+    background-image: url('/static/resources/images/wlan.png');
+}
+
+.palette-rj45 {
+    background-image: url('/static/resources/images/rj45.png');
+}
+
+.palette-tunnel {
+    background-image: url('/static/resources/images/tunnel.png');
+}

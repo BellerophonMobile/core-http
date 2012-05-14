@@ -2,6 +2,10 @@ Ext.define('core.controller.Canvas', {
     extend: 'Ext.app.Controller',
     views: [
         'Canvas',
+        'Palette',
+    ],
+    stores: [
+        'Sessions',
     ],
     refs: [{
         selector: '.canvas > .draw',
@@ -12,9 +16,12 @@ Ext.define('core.controller.Canvas', {
         this.callParent(arguments);
         console.log('Canvas controller init!');
         this.control({
-            '.canvas > .draw': {
+            'canvas > draw': {
                 click: this.canvasClick,
-            }
+            },
+            'palette > buttongroup > button': {
+                toggle: this.paletteToggle,
+            },
         });
     },
 
@@ -28,5 +35,9 @@ Ext.define('core.controller.Canvas', {
             x: e.getX() - box.x,
             y: e.getY() - box.y,
         }).show(true);
+    },
+
+    paletteToggle: function(button, pressed) {
+        console.log(button, pressed);
     },
 });

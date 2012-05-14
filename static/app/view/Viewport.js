@@ -11,7 +11,7 @@ Ext.define('core.view.Viewport', {
     }, {
         xtype: 'palette',
         region: 'west',
-        collapsible: true,
-        split: true,
+        //collapsible: true,
+        //split: true,
     }],
 });
