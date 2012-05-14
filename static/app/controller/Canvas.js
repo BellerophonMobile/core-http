@@ -19,14 +19,14 @@ Ext.define('core.controller.Canvas', {
     },
 
     canvasClick: function(e, t) {
-        console.log(e.getXY());
-        var surface = this.getDraw().surface;
-        surface.add({
+        var draw = this.getDraw();
+        var box = draw.getBox();
+        draw.surface.add({
             type: 'circle',
             fill: '#ff0000',
             radius: 100,
-            x: e.getX(),
-            y: e.getY(),
+            x: e.getX() - box.x,
+            y: e.getY() - box.y,
         }).show(true);
     },
 });
