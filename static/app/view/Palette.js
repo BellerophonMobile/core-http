@@ -21,27 +21,7 @@ Ext.define('core.view.Palette', {
         },
     },
     items: [{
-        xtype: 'panel',
-        layout: 'hbox',
-        items: [{
-            xtype: 'combobox',
-            emptyText: 'Select a session',
-            store: 'Sessions',
-            queryMode: 'local',
-            displayField: 'name',
-            valueField: 'id',
-            editable: false,
-            width: 125,
-            height: null,
-        }, {
-            xtype: 'button',
-            tooltip: 'New Session',
-            width: 24,
-            height: 24,
-            componentCls: 'palette palette-new-session',
-            enableToggle: false,
-            toggleGroup: null,
-        }],
+        xtype: 'session.select',
     }, {
         xtype: 'button',
         text: 'Start Experiment',

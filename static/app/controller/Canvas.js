@@ -3,6 +3,8 @@ Ext.define('core.controller.Canvas', {
     views: [
         'Canvas',
         'Palette',
+        'session.Select',
+        'session.New',
     ],
     stores: [
         'Sessions',
@@ -22,7 +24,14 @@ Ext.define('core.controller.Canvas', {
             'palette > buttongroup > button': {
                 toggle: this.paletteToggle,
             },
+            'palette #new-session': {
+                click: this.newSession,
+            },
         });
+    },
+
+    newSession: function(button, e) {
+        var view = Ext.widget('session.new');
     },
 
     canvasClick: function(e, t) {
