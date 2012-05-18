@@ -137,6 +137,11 @@ def main(argv):
             'tools.staticdir.dir': os.path.join(os.path.abspath(
                 os.path.split(__file__)[0]), 'static')
         },
+        '/favicon.ico': {
+            'tools.staticfile.on': True,
+            'tools.staticfile.filename': os.path.join(os.path.abspath(
+                os.path.split(__file__)[0]), 'static', 'favicon.ico'),
+        }
     }
 
     cherrypy.quickstart(root, '/', config)
