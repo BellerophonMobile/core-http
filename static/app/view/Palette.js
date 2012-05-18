@@ -21,7 +21,7 @@ Ext.define('core.view.Palette', {
         },
     },
     items: [{
-        xtype: 'session.select',
+        xtype: 'sessionSelect',
     }, {
         xtype: 'button',
         text: 'Start Experiment',

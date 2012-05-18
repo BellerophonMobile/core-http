@@ -8,10 +8,14 @@ Ext.define('core.controller.Canvas', {
     ],
     stores: [
         'Sessions',
+        'Nodes',
     ],
     refs: [{
-        selector: '.canvas > .draw',
+        selector: 'canvas > draw',
         ref: 'draw',
+    }, {
+        selector: 'sessionSelect',
+        ref: 'sessionSelect',
     }],
 
     init: function() {
@@ -24,14 +28,44 @@ Ext.define('core.controller.Canvas', {
             'palette > buttongroup > button': {
                 toggle: this.paletteToggle,
             },
-            'palette #new-session': {
+            'palette sessionSelect #new-session': {
                 click: this.newSession,
+            },
+            'palette sessionSelect combobox': {
+                select: this.selectSession,
+            },
+            'sessionNew #createSession': {
+                click: this.createSession,
             },
         });
     },
 
     newSession: function(button, e) {
-        var view = Ext.widget('session.new');
+        var view = Ext.widget('sessionNew');
+    },
+
+    createSession: function(button) {
+        var win = button.up('window');
+        var values = win.down('form').getValues();
+
+        var session = Ext.create('core.model.Session', values);
+        this.getSessionsStore().add(session);
+
+        var combobox = this.getSessionSelect().query('combobox')[0];
+        combobox.select(session);
+        combobox.fireEvent('select', combobox, [session]);
+
+        win.close();
+    },
+
+    selectSession: function(combobox, records) {
+        console.log('select session');
+        var session = records[0];
+        var nodes = session.nodes();
+
+        var node = Ext.create('core.model.Node', {name: 'n0', type: 'wifi'});
+        console.log('Add:', nodes.add(node));
+        console.log('Sync:', nodes.sync());
     },
 
     canvasClick: function(e, t) {

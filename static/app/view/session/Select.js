@@ -1,6 +1,6 @@
 Ext.define('core.view.session.Select', {
     extend: 'Ext.panel.Panel',
-    alias: 'widget.session.select',
+    alias: 'widget.sessionSelect',
     layout: 'hbox',
     items: [{
         xtype: 'combobox',
