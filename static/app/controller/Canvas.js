@@ -14,7 +14,7 @@ Ext.define('core.controller.Canvas', {
         selector: 'canvas > draw',
         ref: 'draw',
     }, {
-        selector: 'sessionSelect',
+        selector: 'sessionSelect combobox',
         ref: 'sessionSelect',
     }],
 
@@ -49,11 +49,15 @@ Ext.define('core.controller.Canvas', {
         var values = win.down('form').getValues();
 
         var session = Ext.create('core.model.Session', values);
-        this.getSessionsStore().add(session);
 
-        var combobox = this.getSessionSelect().query('combobox')[0];
-        combobox.select(session);
-        combobox.fireEvent('select', combobox, [session]);
+        var sessions = this.getSessionsStore();
+        sessions.add(session);
+        sessions.sync();
+
+        /* This doesn't seem to work reliably, maybe a bug in setValue? */
+        //var combobox = this.getSessionSelect();
+        //combobox.setValue(session);
+        //combobox.fireEvent('select', combobox, [session]);
 
         win.close();
     },
@@ -63,9 +67,17 @@ Ext.define('core.controller.Canvas', {
         var session = records[0];
         var nodes = session.nodes();
 
-        var node = Ext.create('core.model.Node', {name: 'n0', type: 'wifi'});
-        console.log('Add:', nodes.add(node));
-        console.log('Sync:', nodes.sync());
+        console.log('Nodes:', nodes);
+
+        /*
+        var node = Ext.create('core.model.Node', {
+            name: 'n1',
+            type: 'default',
+            session_id: session.get('id'),
+        });
+        nodes.add(node);
+        nodes.sync();
+        */
     },
 
     canvasClick: function(e, t) {
@@ -81,6 +93,26 @@ Ext.define('core.controller.Canvas', {
     },
 
     paletteToggle: function(button, pressed) {
-        console.log(button, pressed);
+        if (!pressed) {
+            return;
+        }
+
+        var select = this.getSessionSelect();
+        var value = select.getValue();
+
+        if (value === null) {
+            console.log('BBBBBBB');
+            return;
+        }
+
+        var session = select.findRecordByValue(value);
+        var nodes = session.nodes();
+
+        var node = Ext.create('core.model.Node', {
+            type: 'default',
+        });
+        nodes.add(node);
+        nodes.sync();
+        console.log('AAAAAA');
     },
 });

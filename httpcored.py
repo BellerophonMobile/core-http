@@ -5,7 +5,7 @@ import os
 import sys
 
 import cherrypy
-from core import pycore
+from core import pycore, coreobj
 
 class Session(object):
     'Small wrapper around a session to handle HTTP methods.'
@@ -29,14 +29,20 @@ class Session(object):
             return json_dumps({'nodes': list(self.session.objs())})
 
         elif cherrypy.request.method == 'POST':
-            if kwargs['type'] == 'wifi':
+            req = cherrypy.request.json
+
+            if req['type'] == 'wifi':
                 cls = pycore.nodes.WlanNode
             else:
                 cls = pycore.nodes.CoreNode
 
+            name = req['name']
+            if len(name) == 0:
+                name = None
+
             node = self.session.addobj(cls,
                     objid=len(list(self.session.objs())),
-                    name=kwargs['name'])
+                    name=name)
             return json_dumps(node)
 
         else:
@@ -105,14 +111,24 @@ def session_json(self):
     }
 pycore.Session._json_ = session_json
 
-def object_json(self):
+def node_json(self):
     return {
         'id': self.objid,
         'name': self.name,
         'type': str(type(self)),
         'session_id': self.session.sessionid,
+        'position': self.position
     }
-pycore.nodes.PyCoreObj._json_ = object_json
+pycore.nodes.PyCoreObj._json_ = node_json
+
+def position_json(self):
+    x, y, z = self.get()
+    return {
+        'x': x,
+        'y': y,
+        'z': z,
+    }
+coreobj.Position._json_ = position_json
 
 class CoreJSONEncoder(json.JSONEncoder):
     def default(self, o):
