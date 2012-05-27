@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import threading
 
 import cherrypy
 from core import pycore, coreobj
@@ -51,6 +52,7 @@ class Session(object):
 class Sessions(object):
     def __init__(self):
         self.sessions = []
+        self.lock = threading.Lock()
 
     def _cp_dispatch(self, vpath):
         '''Get the correct session instance to continue method dispatch.
@@ -67,30 +69,34 @@ class Sessions(object):
             return json_dumps({'sessions': self.sessions})
 
         elif cherrypy.request.method == 'POST':
+            return json_dumps(self.create_session(cherrypy.request.json))
+
+        else:
+            raise cherrypy.HTTPError(405)
+
+    def create_session(self, req):
+        with self.lock:
+            # Need to lock creating the session
             core_session = pycore.Session(len(self.sessions))
             session = Session(core_session)
             self.sessions.append(session)
 
-            req = cherrypy.request.json
-            if req.has_key('name'):
-                core_session.name = req['name']
+        if req.has_key('name'):
+            core_session.name = req['name']
 
-            if req.has_key('filename'):
-                core_session.filename = req['filename']
+        if req.has_key('filename'):
+            core_session.filename = req['filename']
 
-            if req.has_key('node_count'):
-                core_session.node_count = int(req['node_count'])
+        if req.has_key('node_count'):
+            core_session.node_count = int(req['node_count'])
 
-            if req.has_key('thumbnail'):
-                core_session.setthumbnail(req['thumbnail'])
+        if req.has_key('thumbnail'):
+            core_session.setthumbnail(req['thumbnail'])
 
-            if req.has_key('user'):
-                core_session.setuser(req['user'])
+        if req.has_key('user'):
+            core_session.setuser(req['user'])
 
-            return json_dumps(session)
-
-        else:
-            raise cherrypy.HTTPError(405)
+        return core_session
 
 class Root(object):
     def __init__(self):
