@@ -6,7 +6,6 @@ Ext.define('core.view.session.Select', {
         xtype: 'combobox',
         emptyText: 'Select a session',
         store: 'Sessions',
-        queryMode: 'local',
         displayField: 'name',
         valueField: 'id',
         editable: false,

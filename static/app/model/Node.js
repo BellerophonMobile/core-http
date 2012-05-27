@@ -38,7 +38,6 @@ Ext.define('core.model.Node', {
         url: '/nodes/',
         reader: {
             type: 'json',
-            root: 'objects',
         },
         writer: {
             type: 'json',

@@ -27,7 +27,7 @@ class Session(object):
     @cherrypy.expose
     def nodes(self, *args, **kwargs):
         if cherrypy.request.method == 'GET':
-            return json_dumps({'nodes': list(self.session.objs())})
+            return json_dumps(list(self.session.objs()))
 
         elif cherrypy.request.method == 'POST':
             req = cherrypy.request.json
@@ -66,7 +66,7 @@ class Sessions(object):
     @cherrypy.expose
     def index(self, **kwargs):
         if cherrypy.request.method == 'GET':
-            return json_dumps({'sessions': self.sessions})
+            return json_dumps(self.sessions)
 
         elif cherrypy.request.method == 'POST':
             return json_dumps(self.create_session(cherrypy.request.json))

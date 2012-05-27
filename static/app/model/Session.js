@@ -9,7 +9,6 @@ Ext.define('core.model.Session', {
         url: '/sessions/',
         reader: {
             type: 'json',
-            root: 'sessions',
         },
         writer: {
             type: 'json',
