@@ -65,13 +65,16 @@ Ext.define('core.controller.Canvas', {
 
         var sessions = this.getSessionsStore();
         sessions.add(session);
+        sessions.sync({
+            scope: this,
+            success: function() {
+                var combobox = this.getSessionSelect();
+                combobox.setValue(session);
+                combobox.fireEvent('select', combobox, [session]);
 
-        /* This doesn't seem to work reliably, maybe a bug in setValue? */
-        //var combobox = this.getSessionSelect();
-        //combobox.setValue(session);
-        //combobox.fireEvent('select', combobox, [session]);
-
-        win.close();
+                win.close();
+            },
+        });
     },
 
     selectSession: function(combobox, records) {
