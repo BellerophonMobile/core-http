@@ -52,7 +52,6 @@ Ext.define('core.controller.Canvas', {
 
         var sessions = this.getSessionsStore();
         sessions.add(session);
-        sessions.sync();
 
         /* This doesn't seem to work reliably, maybe a bug in setValue? */
         //var combobox = this.getSessionSelect();
