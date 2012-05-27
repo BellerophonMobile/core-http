@@ -15,7 +15,8 @@ Ext.define('core.model.Node', {
 
         Ext.override(this.proxy, {
             buildUrl: function(request) {
-                var url = this.callParent(arguments);
+                var url = Ext.data.proxy.Rest.prototype.buildUrl.apply(
+                    this, arguments);
 
                 var sessionId = model.get('core.model.session_id');
                 //console.log('Model:', model);
