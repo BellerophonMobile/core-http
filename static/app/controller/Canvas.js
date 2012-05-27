@@ -37,6 +37,13 @@ Ext.define('core.controller.Canvas', {
             'sessionNew #createSession': {
                 click: this.createSession,
             },
+            'sessionNew textfield': {
+                specialkey: function(field, e) {
+                    if (e.getKey() == e.ENTER) {
+                        this.createSession(field);
+                    }
+                }
+            },
         });
     },
 
@@ -45,9 +52,15 @@ Ext.define('core.controller.Canvas', {
     },
 
     createSession: function(button) {
+        console.log('CREATING SESSION');
         var win = button.up('window');
-        var values = win.down('form').getValues();
+        var form = win.down('form');
 
+        if (!form.getForm().isValid()) {
+            return;
+        }
+
+        var values = form.getValues();
         var session = Ext.create('core.model.Session', values);
 
         var sessions = this.getSessionsStore();
