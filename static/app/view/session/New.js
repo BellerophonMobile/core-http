@@ -34,7 +34,14 @@ Ext.define('core.view.session.New', {
     onRender: function() {
         this.callParent(arguments);
         var buttonPanel = this.getComponent('form').getDockedItems()[0];
+
         var cancelButton = buttonPanel.getComponent('cancel');
         Ext.Object.merge(cancelButton, {scope: this, handler: this.close});
-    }
+    },
+    afterRender: function() {
+        this.callParent(arguments);
+        /* 200 is a delay for focusing, need to wait for the browser to render
+         * the text box first.  This is terrible... */
+        this.getComponent('form').query('textfield')[0].focus(true, 200);
+    },
 });
