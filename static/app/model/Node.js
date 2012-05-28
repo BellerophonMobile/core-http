@@ -2,7 +2,14 @@
 
 Ext.define('core.model.Node', {
     extend: 'Ext.data.Model',
-    fields: ['id', 'name', 'type'],
+    fields: [
+        {name: 'id', type: 'string'},
+        {name: 'name', type: 'string'},
+        {name: 'type', type: 'string'},
+        {name: 'x', type: 'int'},
+        {name: 'y', type: 'int'},
+        {name: 'z', type: 'int'},
+    ],
     associations: [{
         type: 'belongsTo',
         model: 'core.model.Session',
