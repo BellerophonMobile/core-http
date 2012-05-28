@@ -3,6 +3,7 @@
 import json
 import os
 import sys
+import threading
 
 import cherrypy
 from core import pycore
@@ -24,19 +25,37 @@ class Session(object):
             raise cherrypy.HTTPError(405)
 
     @cherrypy.expose
-    def objects(self, *args, **kwargs):
+    def nodes(self, *args, **kwargs):
         if cherrypy.request.method == 'GET':
-            return json_dumps({'objects': list(self.session.objs())})
+            return json_dumps(list(self.session.objs()))
 
         elif cherrypy.request.method == 'POST':
-            if kwargs['type'] == 'wifi':
+            req = cherrypy.request.json
+
+            if req['type'] == 'wlan':
                 cls = pycore.nodes.WlanNode
             else:
                 cls = pycore.nodes.CoreNode
 
+            name = req['name']
+            if len(name) == 0:
+                name = None
+
             node = self.session.addobj(cls,
                     objid=len(list(self.session.objs())),
-                    name=kwargs['name'])
+                    name=name)
+
+            x = None
+            y = None
+            z = None
+            if req.has_key('x'):
+                x = req['x']
+            if req.has_key('y'):
+                y = req['y']
+            if req.has_key('z'):
+                z = req['z']
+            node.setposition(x, y, z)
+
             return json_dumps(node)
 
         else:
@@ -45,6 +64,7 @@ class Session(object):
 class Sessions(object):
     def __init__(self):
         self.sessions = []
+        self.lock = threading.Lock()
 
     def _cp_dispatch(self, vpath):
         '''Get the correct session instance to continue method dispatch.
@@ -58,32 +78,37 @@ class Sessions(object):
     @cherrypy.expose
     def index(self, **kwargs):
         if cherrypy.request.method == 'GET':
-            return json_dumps({'sessions': self.sessions})
+            return json_dumps(self.sessions)
 
         elif cherrypy.request.method == 'POST':
+            return json_dumps(self.create_session(cherrypy.request.json))
+
+        else:
+            raise cherrypy.HTTPError(405)
+
+    def create_session(self, req):
+        with self.lock:
+            # Need to lock creating the session
             core_session = pycore.Session(len(self.sessions))
             session = Session(core_session)
             self.sessions.append(session)
 
-            if kwargs.has_key('name'):
-                core_session.name = kwargs['name']
+        if req.has_key('name'):
+            core_session.name = req['name']
 
-            if kwargs.has_key('filename'):
-                core_session.filename = kwargs['filename']
+        if req.has_key('filename'):
+            core_session.filename = req['filename']
 
-            if kwargs.has_key('node_count'):
-                core_session.node_count = int(kwargs['node_count'])
+        if req.has_key('node_count'):
+            core_session.node_count = int(req['node_count'])
 
-            if kwargs.has_key('thumbnail'):
-                core_session.setthumbnail(kwargs['thumbnail'])
+        if req.has_key('thumbnail'):
+            core_session.setthumbnail(req['thumbnail'])
 
-            if kwargs.has_key('user'):
-                core_session.setuser(kwargs['user'])
+        if req.has_key('user'):
+            core_session.setuser(req['user'])
 
-            return json_dumps(session)
-
-        else:
-            raise cherrypy.HTTPError(405)
+        return core_session
 
 class Root(object):
     def __init__(self):
@@ -99,19 +124,22 @@ def session_json(self):
     return {
         'id': self.sessionid,
         'name': self.name,
-        'filename': self.filename,
-        'thumbnail': self.thumbnail,
         'user': self.user,
-        'node_count': self.node_count,
+        'nodes': [n.objid for n in self.objs()]
     }
 pycore.Session._json_ = session_json
 
-def object_json(self):
+def node_json(self):
     return {
+        'id': self.objid,
         'name': self.name,
         'type': str(type(self)),
+        'session_id': self.session.sessionid,
+        'x': self.position.x,
+        'y': self.position.y,
+        'z': self.position.z,
     }
-pycore.nodes.PyCoreObj._json_ = object_json
+pycore.nodes.PyCoreObj._json_ = node_json
 
 class CoreJSONEncoder(json.JSONEncoder):
     def default(self, o):
@@ -122,7 +150,9 @@ class CoreJSONEncoder(json.JSONEncoder):
             return super(CoreJSONEncoder, self).default(o)
 
 def json_dumps(x):
-    return json.dumps(x, indent=4, cls=CoreJSONEncoder)
+    x = json.dumps(x, indent=4, cls=CoreJSONEncoder)
+    print 'JSON:', x
+    return x
 
 def main(argv):
     root = Root()
@@ -131,12 +161,20 @@ def main(argv):
         'global': {
             'server.socket_host': '127.0.0.1',
             'server.socket_port': 8080,
+            'request.body.processors': {
+                'application/json': cherrypy.lib.jsontools.json_processor,
+            }
         },
         '/static': {
             'tools.staticdir.on': True,
             'tools.staticdir.dir': os.path.join(os.path.abspath(
                 os.path.split(__file__)[0]), 'static')
         },
+        '/favicon.ico': {
+            'tools.staticfile.on': True,
+            'tools.staticfile.filename': os.path.join(os.path.abspath(
+                os.path.split(__file__)[0]), 'static', 'favicon.ico'),
+        }
     }
 
     cherrypy.quickstart(root, '/', config)

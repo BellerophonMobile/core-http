@@ -2,31 +2,10 @@
 <html>
     <head>
         <title>CORE</title>
-        <script src='static/js/jquery-1.7.2.min.js'></script>
-        <script src='static/js/core.js'></script>
+        <link rel='stylesheet' href='static/extjs/resources/css/ext-all.css'/>
+        <link rel='stylesheet' href='static/resources/css/style.css'/>
+        <script src='static/extjs/ext-debug.js'></script>
+        <script src='static/app.js'></script>
     </head>
-    <body>
-        <h1>CORE</h1>
-        <p><label>Sessions:
-            <select id='sessions' disabled>
-                <option>Not connected to daemon</option>
-            </select>
-        </label></p>
-        <form id='new_session' action='/sessions/' method='POST'>
-            <p><label>Session Name: <input type='text' name='name'/></label></p>
-            <p><label>User Name: <input type='text' name='user'/></label></p>
-            <p><input type='submit' value='New Session'/></p>
-        </form>
-        <h2>Objects</h2>
-        <ul id='objects'>
-        </ul>
-        <form id='new_object' action='/sessions/0/objects/' method='POST'>
-            <p><label>Node Name: <input type='text' name='name'/></label></p>
-            <p><label>Type: <select name='type'>
-                <option value='router'>Router</option>
-                <option value='wifi'>WiFi</option>
-            </select></label></p>
-            <p><input type='submit' value='New Node'/></p>
-        </form>
-    </body>
+    <body></body>
 </html>
