@@ -3,54 +3,36 @@ Ext.define('core.controller.Canvas', {
     views: [
         'Canvas',
         'Palette',
-        'session.Select',
-        'session.New',
     ],
     stores: [
-        'Sessions',
         'Nodes',
     ],
     refs: [{
-        selector: 'canvas > draw',
+        selector: 'core.view.Canvas > draw',
         ref: 'draw',
     }, {
-        selector: 'sessionSelect combobox',
+        selector: 'core.view.session.Select combobox',
         ref: 'sessionSelect',
     }],
 
     init: function() {
+        console.log('Canvas controller init!');
+        this.callParent(arguments);
+
         this.currentTool = null;
 
-        this.callParent(arguments);
-        console.log('Canvas controller init!');
         this.control({
-            'canvas > draw': {
+            'core.view.Canvas > draw': {
                 click: this.canvasClick,
             },
-            'palette > buttongroup > button': {
+            'core.view.Palette > buttongroup > button': {
                 toggle: this.paletteToggle,
-            },
-            'palette sessionSelect #new-session': {
-                click: this.newSession,
-            },
-            'palette sessionSelect combobox': {
-                select: this.selectSession,
-            },
-            'sessionNew #createSession': {
-                click: this.createSession,
-            },
-            'sessionNew textfield': {
-                specialkey: function(field, e) {
-                    if (e.getKey() == e.ENTER) {
-                        this.createSession(field);
-                    }
-                }
             },
         });
     },
 
     newSession: function(button, e) {
-        var view = Ext.widget('sessionNew');
+        var view = Ext.widget('core.view.session.new');
     },
 
     createSession: function(button) {

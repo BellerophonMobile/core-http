@@ -1,6 +1,6 @@
 Ext.define('core.view.Canvas', {
     extend: 'Ext.panel.Panel',
-    alias: 'widget.canvas',
+    alias: 'widget.core.view.Canvas',
     layout: 'fit',
     items: [{
         xtype: 'draw',

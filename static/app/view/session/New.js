@@ -1,6 +1,6 @@
 Ext.define('core.view.session.New', {
     extend: 'Ext.window.Window',
-    alias: 'widget.sessionNew',
+    alias: 'widget.core.view.session.New',
     title: 'New Session',
     layout: 'fit',
     autoShow: true,

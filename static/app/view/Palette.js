@@ -1,6 +1,6 @@
 Ext.define('core.view.Palette', {
     extend: 'Ext.panel.Panel',
-    alias: 'widget.palette',
+    alias: 'widget.core.view.Palette',
     title: 'Tools Palette',
     header: false,
     layout: {
@@ -10,9 +10,13 @@ Ext.define('core.view.Palette', {
     },
     width: 150,
     defaults: {
-        xtype: 'buttongroup',
-        columns: 4,
+        xtype: 'panel',
+        layout: {
+            type: 'hbox',
+            manageOverflow: 2,
+        },
         defaults: {
+            xtype: 'button',
             scale: 'large',
             enableToggle: true,
             toggleGroup: 'palette',
@@ -21,7 +25,9 @@ Ext.define('core.view.Palette', {
         },
     },
     items: [{
-        xtype: 'sessionSelect',
+        xtype: 'core.view.session.Select',
+        enableToggle: false,
+        toggleGroup: null,
     }, {
         xtype: 'button',
         text: 'Start Experiment',

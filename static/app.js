@@ -4,8 +4,10 @@ Ext.application({
     autoCreateViewport: true,
     controllers: [
         'Canvas',
+        'Sessions',
     ],
     launch: function() {
         console.log('App launch');
+        return true;
     },
 });

@@ -1,6 +1,6 @@
 Ext.define('core.view.session.Select', {
     extend: 'Ext.panel.Panel',
-    alias: 'widget.sessionSelect',
+    alias: 'widget.core.view.session.Select',
     layout: 'hbox',
     items: [{
         xtype: 'combobox',
@@ -13,12 +13,17 @@ Ext.define('core.view.session.Select', {
         height: null,
     }, {
         xtype: 'button',
+        itemId: 'newButton',
         tooltip: 'New Session',
-        itemId: 'new-session',
         width: 24,
         height: 24,
         componentCls: 'palette palette-new-session',
-        enableToggle: false,
-        toggleGroup: null,
     }],
+    initComponent: function() {
+        this.callParent(arguments);
+        this.addEvents('newSession');
+        this.queryById('newButton').on('click', function() {
+            this.fireEvent('newSession');
+        }, this);
+    }
 });

@@ -1,17 +1,17 @@
 Ext.define('core.view.Viewport', {
     extend: 'Ext.container.Viewport',
-    layout: 'border',
     requires: [
         'core.view.Canvas',
         'core.view.Palette',
     ],
+    layout: 'border',
     items: [{
-        xtype: 'canvas',
+        xtype: 'core.view.Canvas',
         region: 'center',
     }, {
-        xtype: 'palette',
+        xtype: 'core.view.Palette',
         region: 'west',
-        //collapsible: true,
-        //split: true,
+        collapsible: true,
+        split: true,
     }],
 });
