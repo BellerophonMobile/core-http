@@ -8,11 +8,12 @@ import threading
 import cherrypy
 from core import pycore
 
-class Session(object):
+class SessionWrapper(object):
     'Small wrapper around a session to handle HTTP methods.'
 
-    def __init__(self, session):
+    def __init__(self, session, manager):
         self.session = session
+        self.manager = manager
 
     def _json_(self):
         return self.session._json_()
@@ -61,9 +62,10 @@ class Session(object):
         else:
             raise cherrypy.HTTPError(405)
 
-class Sessions(object):
+class SessionManager(object):
     def __init__(self):
-        self.sessions = []
+        self.wrappers = {}
+        self.sid = 0
         self.lock = threading.Lock()
 
     def _cp_dispatch(self, vpath):
@@ -73,14 +75,15 @@ class Sessions(object):
         Since we can't have an attribute named "10" on this session, this
         function gets called to provide that.
         '''
-        return self.sessions[int(vpath.pop(0))]
+        return self.wrappers[int(vpath.pop(0))]
 
     @cherrypy.expose
     def index(self, **kwargs):
         if cherrypy.request.method == 'GET':
-            return json_dumps(self.sessions)
+            return json_dumps(self.wrappers.values())
 
         elif cherrypy.request.method == 'POST':
+            print('INCOMING JSON', cherrypy.request.json)
             return json_dumps(self.create_session(cherrypy.request.json))
 
         else:
@@ -89,30 +92,22 @@ class Sessions(object):
     def create_session(self, req):
         with self.lock:
             # Need to lock creating the session
-            core_session = pycore.Session(len(self.sessions))
-            session = Session(core_session)
-            self.sessions.append(session)
+            self.sid += 1
+            session = pycore.Session(self.sid)
+            wrapper = SessionWrapper(session, self)
+            self.wrappers[session.sessionid] = wrapper
 
         if req.has_key('name'):
-            core_session.name = req['name']
-
-        if req.has_key('filename'):
-            core_session.filename = req['filename']
-
-        if req.has_key('node_count'):
-            core_session.node_count = int(req['node_count'])
-
-        if req.has_key('thumbnail'):
-            core_session.setthumbnail(req['thumbnail'])
+            session.name = req['name']
 
         if req.has_key('user'):
-            core_session.setuser(req['user'])
+            session.setuser(req['user'])
 
-        return core_session
+        return wrapper
 
 class Root(object):
     def __init__(self):
-        self.sessions = Sessions()
+        self.sessions = SessionManager()
 
     @cherrypy.expose
     def index(self):
@@ -150,9 +145,9 @@ class CoreJSONEncoder(json.JSONEncoder):
             return super(CoreJSONEncoder, self).default(o)
 
 def json_dumps(x):
-    x = json.dumps(x, indent=4, cls=CoreJSONEncoder)
-    print 'JSON:', x
-    return x
+    dbg = json.dumps(x, indent=4, cls=CoreJSONEncoder)
+    print 'JSON:', dbg
+    return json.dumps(x, separators=(',', ':'), cls=CoreJSONEncoder)
 
 def main(argv):
     root = Root()
