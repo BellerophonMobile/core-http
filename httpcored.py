@@ -33,36 +33,36 @@ class SessionWrapper(object):
             return json_dumps(list(self.session.objs()))
 
         elif cherrypy.request.method == 'POST':
-            req = cherrypy.request.json
-
-            if req['type'] == 'wlan':
-                cls = pycore.nodes.WlanNode
-            else:
-                cls = pycore.nodes.CoreNode
-
-            name = req['name']
-            if len(name) == 0:
-                name = None
-
-            node = self.session.addobj(cls,
-                    objid=len(list(self.session.objs())),
-                    name=name)
-
-            x = None
-            y = None
-            z = None
-            if req.has_key('x'):
-                x = req['x']
-            if req.has_key('y'):
-                y = req['y']
-            if req.has_key('z'):
-                z = req['z']
-            node.setposition(x, y, z)
-
-            return json_dumps(node)
-
+            return self.create_node(cherrypy.request.json)
         else:
             raise cherrypy.HTTPError(405)
+
+    def create_node(self, req):
+        if req['type'] == 'wlan':
+            cls = pycore.nodes.WlanNode
+        else:
+            cls = pycore.nodes.CoreNode
+
+        name = req['name']
+        if len(name) == 0:
+            name = None
+
+        node = self.session.addobj(cls,
+                objid=len(list(self.session.objs())),
+                name=name)
+
+        x = None
+        y = None
+        z = None
+        if req.has_key('x'):
+            x = req['x']
+        if req.has_key('y'):
+            y = req['y']
+        if req.has_key('z'):
+            z = req['z']
+        node.setposition(x, y, z)
+
+        return json_dumps(node)
 
 class SessionManager(object):
     def __init__(self):
