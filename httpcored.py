@@ -125,7 +125,7 @@ class Root(object):
 
 def session_json(self):
     return {
-        'id': self.sessionid,
+        'sid': self.sessionid,
         'name': self.name,
         'user': self.user,
         'nodes': [n.objid for n in self.objs()]
@@ -134,10 +134,10 @@ pycore.Session._json_ = session_json
 
 def node_json(self):
     return {
-        'id': self.objid,
+        'nid': self.objid,
         'name': self.name,
         'type': str(type(self)),
-        'session_id': self.session.sessionid,
+        'sid': self.session.sessionid,
         'x': self.position.x,
         'y': self.position.y,
         'z': self.position.z,
