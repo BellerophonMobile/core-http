@@ -22,6 +22,8 @@ class SessionWrapper(object):
     def index(self):
         if cherrypy.request.method == 'GET':
             return json_dumps(self.session)
+        elif cherrypy.request.method == 'DELETE':
+            return self.manager.remove_session(self)
         else:
             raise cherrypy.HTTPError(405)
 
@@ -104,6 +106,12 @@ class SessionManager(object):
             session.setuser(req['user'])
 
         return wrapper
+
+    def remove_session(self, wrapper):
+        with self.lock:
+            self.wrappers.pop(wrapper.session.sessionid)
+        wrapper.session.shutdown()
+        wrapper.session.delsession(wrapper.session)
 
 class Root(object):
     def __init__(self):
