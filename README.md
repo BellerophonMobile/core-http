@@ -24,3 +24,12 @@ Requirements
 
 [cherrypy-home]: http://www.cherrypy.org/
 [extjs-home]: http://www.sencha.com/products/extjs/
+
+Client APIs
+-----------
+
+### Python Client API
+
+The Python client API requires the [requests][requests-home] module.
+
+[requests-home]: http://docs.python-requests.org
