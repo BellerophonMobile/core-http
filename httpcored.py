@@ -1,5 +1,7 @@
 #!/usr/bin/env python2
 
+from __future__ import print_function
+
 import json
 import os
 import sys
@@ -141,7 +143,7 @@ pycore.nodes.PyCoreObj._json_ = node_json
 
 class CoreJSONEncoder(json.JSONEncoder):
     def default(self, o):
-        print 'TYPE:', type(o)
+        print('TYPE:', type(o))
         try:
             return o._json_()
         except AttributeError:
@@ -149,7 +151,7 @@ class CoreJSONEncoder(json.JSONEncoder):
 
 def json_dumps(x):
     dbg = json.dumps(x, indent=4, cls=CoreJSONEncoder)
-    print 'JSON:', dbg
+    print('JSON:', dbg)
     return json.dumps(x, separators=(',', ':'), cls=CoreJSONEncoder)
 
 def main(argv):

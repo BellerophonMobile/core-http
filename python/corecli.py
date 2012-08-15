@@ -4,6 +4,8 @@
     Author: Tom Wambold <tom5760@gmail.com>
 '''
 
+from __future__ import print_function
+
 import sys
 
 from core import Daemon
@@ -18,17 +20,17 @@ class Cli(object):
         try:
             func = getattr(self, 'do_' + arg)
         except AttributeError:
-            print 'Invalid argument "{}"'.format(arg)
+            print('Invalid argument "{}"'.format(arg))
             return 1
 
         return func(*args[1:])
 
     @staticmethod
     def do_help(*args):
-        print '\n'.join((
+        print('\n'.join((
             'Usage: {} OBJECT',
             'where OBJECT := {{ session | event | help }}',
-        )).format(sys.argv[0])
+        )).format(sys.argv[0]))
 
     @staticmethod
     def do_session(*args):
@@ -37,31 +39,31 @@ class Cli(object):
 class Session(Cli):
     @staticmethod
     def do_help(*args):
-        print '\n'.join((
+        print('\n'.join((
             'Usage: {} session COMMAND',
             '  session help                This help',
             '  session list                List all active sessions',
             '  session new NAME USER       Create a new session',
             '  session del ID              Destroys a session',
             '  session get ID              Interact with a particular session',
-        )).format(sys.argv[0])
+        )).format(sys.argv[0]))
 
     @staticmethod
     def do_list():
         sessions = Daemon().sessions()
         if len(sessions) == 0:
-            print 'No active sessions'
+            print('No active sessions')
             return
 
-        print '{} active sessions'.format(len(sessions))
-        print 'ID\tName\tOwner'
+        print('{} active sessions'.format(len(sessions)))
+        print('ID\tName\tOwner')
         for session in sessions:
-            print '{}\t{}\t{}'.format(session.sid, session.name, session.user)
+            print('{}\t{}\t{}'.format(session.sid, session.name, session.user))
 
     @staticmethod
     def do_new(name, user):
         session = Daemon().new_session(name, user)
-        print 'ID:', session.sid
+        print('ID:', session.sid)
 
     @staticmethod
     def do_del(sid):
@@ -76,12 +78,12 @@ class SelectedSession(Cli):
         self.sid = sid
 
     def do_help(self, *args):
-        print '\n'.join((
+        print('\n'.join((
             'Usage: {0} session {1} OBJECT',
             '  session {1} help            This help',
             '  session {1} node            Manipulate nodes of this session',
             '  session {1} link            Manipulate links of this session',
-        )).format(sys.argv[0], self.sid)
+        )).format(sys.argv[0], self.sid))
 
     def do_node(self, *args):
         return Node(self.sid).run(*args)
@@ -95,7 +97,7 @@ class Node(Cli):
         self.session = Daemon().get_session(self.sid)
 
     def do_help(self, *args):
-        print '\n'.join((
+        print('\n'.join((
             'Usage: {} session {} node COMMAND',
             '  node help                   This help',
             '  node list                   List all nodes',
@@ -103,23 +105,23 @@ class Node(Cli):
             '  node del ID                 Destroy a node',
             '',
             'Types: default, wlan',
-        )).format(sys.argv[0], self.sid)
+        )).format(sys.argv[0], self.sid))
 
     def do_list(self):
         nodes = self.session.nodes()
         if len(nodes) == 0:
-            print 'No nodes'
+            print('No nodes')
             return
 
-        print '{} nodes'.format(len(nodes))
-        print 'ID\tName\tType\tCoordinate'
+        print('{} nodes'.format(len(nodes)))
+        print('ID\tName\tType\tCoordinate')
         for node in nodes:
-            print '{0}\t{1}\t{2}\t({3[0]}, {3[1]}, {3[2]})'.format(
-                    node.nid, node.name, node.ntype, node.position)
+            print('{0}\t{1}\t{2}\t({3[0]}, {3[1]}, {3[2]})'.format(
+                    node.nid, node.name, node.ntype, node.position))
 
     def do_new(self, ntype, name, x, y, z):
         node = self.session.new_node(ntype, name, x, y, z)
-        print 'ID:', node.nid
+        print('ID:', node.nid)
 
     def do_del(self, nid):
         self.session.get_node(nid).delete()
@@ -129,13 +131,13 @@ class Link(Cli):
         self.sid = sid
 
     def do_help(self, *args):
-        print '\n'.join((
+        print('\n'.join((
             'Usage: {} session {} link COMMAND',
             '  link help                   This help',
             '  link list                   List all links',
             '  link new <a> <b>            Create a link between two nodes',
             '  link del <lid>              Destroy a link',
-        )).format(sys.argv[0], self.sid)
+        )).format(sys.argv[0], self.sid))
 
 def main(argv):
     return Cli().run(*argv[1:])
