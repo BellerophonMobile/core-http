@@ -5,9 +5,40 @@ from __future__ import print_function
 import json
 import os
 import sys
+import threading
 
 import cherrypy
 from core import pycore
+
+class EventListener(object):
+    def __init__(self):
+        # Condition for blocking the client threads
+        self.listener_cond = threading.Condition()
+        self.msg = None
+
+    @cherrypy.expose
+    def events(self):
+        if cherrypy.request.method != 'GET':
+            raise cherrypy.HTTPError(405)
+
+        return self.send_response()
+    events._cp_config = {'response.stream': True}
+
+    def send_response(self):
+        while True:
+            with self.listener_cond:
+                self.listener_cond.wait()
+                msg = self.msg
+
+            if msg is None:
+                break
+
+            yield msg
+
+    def publish_event(self, msg):
+        with self.listener_cond:
+            self.msg = msg
+            self.listener_cond.notify_all()
 
 class SessionWrapper(object):
     'Small wrapper around a session to handle HTTP methods.'
@@ -132,8 +163,9 @@ class NodeManager(object):
         self.wrappers.pop(wrapper.node.objid)
         self.session.delobj(wrapper.node.objid)
 
-class NodeWrapper(object):
+class NodeWrapper(EventListener):
     def __init__(self, node, manager):
+        super(NodeWrapper, self).__init__()
         self.node = node
         self.manager = manager
 
@@ -165,6 +197,7 @@ class NodeWrapper(object):
             x, y, z = map(int, req['position'])
             self.node.setposition(x, y, z)
 
+        self.publish_event(json_dumps(self))
         return self
 
 class Root(object):
