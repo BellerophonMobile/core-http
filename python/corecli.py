@@ -19,11 +19,16 @@ class Cli(object):
 
         try:
             func = getattr(self, 'do_' + arg)
+            func_args = args[1:]
         except AttributeError:
-            print('Invalid argument "{}"'.format(arg))
-            return 1
+            try:
+                func = getattr(self, 'default')
+                func_args = args
+            except AttributeError:
+                print('Invalid argument "{}"'.format(arg))
+                return 1
 
-        return func(*args[1:])
+        return func(*func_args)
 
     @staticmethod
     def do_help(*args):
@@ -45,7 +50,7 @@ class Session(Cli):
             '  session list                List all active sessions',
             '  session new NAME USER       Create a new session',
             '  session del ID              Destroys a session',
-            '  session get ID              Interact with a particular session',
+            '  session ID [...]        Interact with a particular session',
         )).format(sys.argv[0]))
 
     @staticmethod
@@ -70,7 +75,7 @@ class Session(Cli):
         Daemon().get_session(sid).delete()
 
     @staticmethod
-    def do_get(sid, *args):
+    def default(sid, *args):
         return SelectedSession(sid).run(*args)
 
 class SelectedSession(Cli):
@@ -103,6 +108,7 @@ class Node(Cli):
             '  node list                   List all nodes',
             '  node new TYPE NAME X Y Z    Create a new node',
             '  node del ID                 Destroy a node',
+            '  node ID [...]           Interact with a particular node',
             '',
             'Types: default, wlan',
         )).format(sys.argv[0], self.sid))
@@ -125,6 +131,33 @@ class Node(Cli):
 
     def do_del(self, nid):
         self.session.get_node(nid).delete()
+
+    def default(self, nid, *args):
+        return SelectedNode(self.sid, nid, self.session).run(*args)
+
+class SelectedNode(Cli):
+    def __init__(self, sid, nid, session):
+        self.sid = sid
+        self.nid = nid
+        self.session = session
+        self.node = self.session.get_node(self.nid)
+
+    def do_help(self, *args):
+        print('\n'.join((
+            'Usage: {0} session {1} node get {2} COMMAND',
+            '  node {2} help                  This help',
+            '  node {2} position get          Get current position',
+            '  node {2} position set X Y Z    Set current position',
+        )).format(sys.argv[0], self.sid, self.nid))
+
+    def do_position(self, action, x=0, y=0, z=0):
+        if action == 'get':
+            print('{0[0]}, {0[1]}, {0[2]}'.format(self.node.position))
+        elif action == 'set':
+            self.node.position = (x, y, z)
+        else:
+            print('Error: Invalid action "{}".  [get|set]'.format(action))
+            return 1
 
 class Link(Cli):
     def __init__(self, sid):

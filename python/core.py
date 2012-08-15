@@ -63,12 +63,10 @@ class Session(object):
         data = json_dumps({
             'type': ntype,
             'name': name,
-            'x': x,
-            'y': y,
-            'z': z,
+            'position': tuple(map(int, (x, y, z))),
         })
-        r = self.req.post(make_url(self.address, 'sessions', self.sid,'nodes'),
-                          data=data)
+        r = self.req.post(make_url(self.address, 'sessions', self.sid,
+                                   'nodes'), data=data)
         return Node(self.address, self.req, r.json)
 
     sid = property(lambda self: self._sid, doc='Session ID')
@@ -84,17 +82,26 @@ class Node(object):
         self._sid = json['sid']
         self._name = json['name']
         self._type = json['type']
-        self._position = (json['x'], json['y'], json['z'])
+        self._position = tuple(map(int, json['position']))
+
+        self.url = make_url(
+                self.address, 'sessions', self.sid, 'nodes', self.nid)
 
     def delete(self):
-        r = self.req.delete(make_url(
-            self.address, 'sessions', self.sid, 'nodes', self.nid))
+        r = self.req.delete(self.url)
 
-    sid = property(lambda self: self._sid, doc='Session ID')
-    nid = property(lambda self: self._nid, doc='Node ID')
-    name = property(lambda self: self._name, doc='Node Name')
-    ntype = property(lambda self: self._type, doc='Node Type')
-    position = property(lambda self: self._position, doc='Node coordinates')
+    def set_position(self, position):
+        data = json_dumps({
+            'position': tuple(map(int, position))
+        })
+        r = self.req.post(self.url, data=data)
+        self._position = tuple(map(int, r.json['position']))
+
+    sid = property(lambda self: self._sid)
+    nid = property(lambda self: self._nid)
+    name = property(lambda self: self._name)
+    ntype = property(lambda self: self._type)
+    position = property(lambda self: self._position, set_position)
 
 def make_url(*args, **kwargs):
     url = '/'.join(map(str, args))
