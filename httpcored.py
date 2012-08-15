@@ -144,9 +144,9 @@ pycore.nodes.PyCoreObj._json_ = node_json
 class CoreJSONEncoder(json.JSONEncoder):
     def default(self, o):
         print('TYPE:', type(o))
-        try:
+        if hasattr(o, '_json_'):
             return o._json_()
-        except AttributeError:
+        else:
             return super(CoreJSONEncoder, self).default(o)
 
 def json_dumps(x):
