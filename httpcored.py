@@ -15,55 +15,26 @@ class SessionWrapper(object):
     def __init__(self, session, manager):
         self.session = session
         self.manager = manager
+        self.nodes = NodeManager(session)
 
     def _json_(self):
-        return self.session._json_()
+        return {
+            'sid': self.session.sessionid,
+            'name': self.session.name,
+            'user': self.session.user,
+            'nodes': [n.objid for n in self.session.objs()]
+        }
 
     @cherrypy.expose
     def index(self):
         if cherrypy.request.method == 'GET':
-            return json_dumps(self.session)
+            return json_dumps(self)
+
         elif cherrypy.request.method == 'DELETE':
-            return self.manager.remove_session(self)
+            return self.manager.destroy_session(self)
+
         else:
             raise cherrypy.HTTPError(405)
-
-    @cherrypy.expose
-    def nodes(self, *args, **kwargs):
-        if cherrypy.request.method == 'GET':
-            return json_dumps(list(self.session.objs()))
-
-        elif cherrypy.request.method == 'POST':
-            return self.create_node(cherrypy.request.json)
-        else:
-            raise cherrypy.HTTPError(405)
-
-    def create_node(self, req):
-        if req['type'] == 'wlan':
-            cls = pycore.nodes.WlanNode
-        else:
-            cls = pycore.nodes.CoreNode
-
-        name = req['name']
-        if len(name) == 0:
-            name = None
-
-        node = self.session.addobj(cls,
-                objid=len(list(self.session.objs())),
-                name=name)
-
-        x = None
-        y = None
-        z = None
-        if req.has_key('x'):
-            x = req['x']
-        if req.has_key('y'):
-            y = req['y']
-        if req.has_key('z'):
-            z = req['z']
-        node.setposition(x, y, z)
-
-        return json_dumps(node)
 
 class SessionManager(object):
     def __init__(self):
@@ -105,10 +76,96 @@ class SessionManager(object):
 
         return wrapper
 
-    def remove_session(self, wrapper):
+    def destroy_session(self, wrapper):
         self.wrappers.pop(wrapper.session.sessionid)
         wrapper.session.shutdown()
         wrapper.session.delsession(wrapper.session)
+
+class NodeManager(object):
+    NODE_TYPES = {
+        'default': pycore.nodes.CoreNode,
+        'hub': pycore.nodes.HubNode,
+        'rj45': pycore.nodes.RJ45Node,
+        'switch': pycore.nodes.SwitchNode,
+        'tunnel': pycore.nodes.TunnelNode,
+        'wlan': pycore.nodes.WlanNode,
+    }
+
+    def __init__(self, session):
+        self.session = session
+        self.wrappers = {}
+
+    def _cp_dispatch(self, vpath):
+        'Get the correct node instance to continue method dispatch.'
+        return self.wrappers[int(vpath.pop())]
+
+    @cherrypy.expose
+    def index(self):
+        if cherrypy.request.method == 'GET':
+            return json_dumps(self.wrappers.values())
+
+        elif cherrypy.request.method == 'POST':
+            return json_dumps(self.create_node(cherrypy.request.json))
+
+        else:
+            raise cherrypy.HTTPError(405)
+
+    def create_node(self, req):
+        cls = NodeManager.NODE_TYPES[req.get('type', 'default')]
+
+        name = req['name']
+        if len(name) == 0:
+            name = None
+
+        node = self.session.addobj(cls,
+                objid=len(list(self.session.objs())),
+                name=name)
+
+        wrapper = NodeWrapper(node, self)
+        self.wrappers[node.objid] = wrapper
+
+        wrapper.update_node(req)
+
+        return wrapper
+
+    def destroy_node(self, wrapper):
+        self.wrappers.pop(wrapper.node.objid)
+        self.session.delobj(wrapper.node.objid)
+
+class NodeWrapper(object):
+    def __init__(self, node, manager):
+        self.node = node
+        self.manager = manager
+
+    def _json_(self):
+        return {
+            'nid': self.node.objid,
+            'name': self.node.name,
+            'type': str(type(self.node)),
+            'sid': self.node.session.sessionid,
+            'position': self.node.position.get(),
+        }
+
+    @cherrypy.expose
+    def index(self):
+        if cherrypy.request.method == 'GET':
+            return json_dumps(self)
+
+        elif cherrypy.request.method == 'POST':
+            return json_dumps(self.update_node(cherrypy.request.json))
+
+        elif cherrypy.request.method == 'DELETE':
+            return self.manager.destroy_node(self)
+
+        else:
+            raise cherrypy.HTTPError(405)
+
+    def update_node(self, req):
+        if req.has_key('position'):
+            x, y, z = map(int, req['position'])
+            self.node.setposition(x, y, z)
+
+        return self
 
 class Root(object):
     def __init__(self):
@@ -120,26 +177,6 @@ class Root(object):
                             'static', 'index.html')
         return cherrypy.lib.static.serve_file(path)
 
-def session_json(self):
-    return {
-        'sid': self.sessionid,
-        'name': self.name,
-        'user': self.user,
-        'nodes': [n.objid for n in self.objs()]
-    }
-pycore.Session._json_ = session_json
-
-def node_json(self):
-    return {
-        'nid': self.objid,
-        'name': self.name,
-        'type': str(type(self)),
-        'sid': self.session.sessionid,
-        'x': self.position.x,
-        'y': self.position.y,
-        'z': self.position.z,
-    }
-pycore.nodes.PyCoreObj._json_ = node_json
 
 class CoreJSONEncoder(json.JSONEncoder):
     def default(self, o):
