@@ -97,7 +97,7 @@ class NodeManager(object):
 
     def _cp_dispatch(self, vpath):
         'Get the correct node instance to continue method dispatch.'
-        return self.wrappers[int(vpath.pop())]
+        return self.wrappers[int(vpath.pop(0))]
 
     @cherrypy.expose
     def index(self):
