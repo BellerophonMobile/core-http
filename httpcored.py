@@ -3,7 +3,6 @@
 import json
 import os
 import sys
-import threading
 
 import cherrypy
 from core import pycore
@@ -68,7 +67,6 @@ class SessionManager(object):
     def __init__(self):
         self.wrappers = {}
         self.sid = 0
-        self.lock = threading.Lock()
 
     def _cp_dispatch(self, vpath):
         '''Get the correct session instance to continue method dispatch.
@@ -92,12 +90,10 @@ class SessionManager(object):
             raise cherrypy.HTTPError(405)
 
     def create_session(self, req):
-        with self.lock:
-            # Need to lock creating the session
-            self.sid += 1
-            session = pycore.Session(self.sid)
-            wrapper = SessionWrapper(session, self)
-            self.wrappers[session.sessionid] = wrapper
+        self.sid += 1
+        session = pycore.Session(self.sid)
+        wrapper = SessionWrapper(session, self)
+        self.wrappers[session.sessionid] = wrapper
 
         if req.has_key('name'):
             session.name = req['name']
@@ -108,8 +104,7 @@ class SessionManager(object):
         return wrapper
 
     def remove_session(self, wrapper):
-        with self.lock:
-            self.wrappers.pop(wrapper.session.sessionid)
+        self.wrappers.pop(wrapper.session.sessionid)
         wrapper.session.shutdown()
         wrapper.session.delsession(wrapper.session)
 
