@@ -10,65 +10,83 @@ import threading
 import cherrypy
 from core import pycore
 
-class EventListener(object):
-    def __init__(self):
+class EventPublisher(object):
+    def __init__(self, parent=None):
+        self.parent = parent
         # Condition for blocking the client threads
         self.listener_cond = threading.Condition()
+        self.path = None
         self.msg = None
+
+        # Register with cherrypy so we can shut down client threads cleanly
+        cherrypy.engine.subscribe('stop', self.stop, -99999999)
 
     @cherrypy.expose
     def events(self):
         if cherrypy.request.method != 'GET':
             raise cherrypy.HTTPError(405)
 
-        return self.send_response()
+        if (cherrypy.request.headers.has_key('Accept') and
+                cherrypy.request.headers['Accept'] == 'text/event-stream'):
+            cherrypy.response.headers['Content-Type'] = 'text/event-stream'
+            do_sse = True
+        else:
+            cherrypy.response.headers['Content-Type'] = 'application/json'
+            do_sse = False
+
+        return self.send_response(do_sse)
     events._cp_config = {'response.stream': True}
 
-    def send_response(self):
+    def send_response(self, do_sse=False):
+        i = 0
         while True:
             with self.listener_cond:
                 self.listener_cond.wait()
                 msg = self.msg
+                path = self.path
 
-            if msg is None:
+            if msg is None or path is None:
                 break
 
-            yield msg
+            if do_sse:
+                msg = json_dumps(msg)
+                data = ''.join('data: {}\n'.format(s) for s in msg.split('\n'))
+                data = 'event: {}\nid: {}\n{}\n'.format(path, i, data)
+                i += 1
 
-    def publish_event(self, msg):
+            else:
+                data = json_dumps({
+                    'path': path,
+                    'msg': msg,
+                })
+
+            yield data
+
+    def publish_event(self, path, msg):
         with self.listener_cond:
+            self.path = path
             self.msg = msg
             self.listener_cond.notify_all()
+            if self.parent:
+                self.parent.publish_event(path, msg)
 
-class SessionWrapper(object):
-    'Small wrapper around a session to handle HTTP methods.'
+    def stop(self):
+        self.publish_event(None, None)
 
-    def __init__(self, session, manager):
-        self.session = session
-        self.manager = manager
-        self.nodes = NodeManager(session)
-
-    def _json_(self):
-        return {
-            'sid': self.session.sessionid,
-            'name': self.session.name,
-            'user': self.session.user,
-            'nodes': [n.objid for n in self.session.objs()]
-        }
+class Root(EventPublisher):
+    def __init__(self):
+        super(Root, self).__init__()
+        self.sessions = SessionManager(self)
 
     @cherrypy.expose
     def index(self):
-        if cherrypy.request.method == 'GET':
-            return json_dumps(self)
+        path = os.path.join(os.path.abspath(os.path.split(__file__)[0]),
+                            'static', 'index.html')
+        return cherrypy.lib.static.serve_file(path)
 
-        elif cherrypy.request.method == 'DELETE':
-            return self.manager.destroy_session(self)
-
-        else:
-            raise cherrypy.HTTPError(405)
-
-class SessionManager(object):
-    def __init__(self):
+class SessionManager(EventPublisher):
+    def __init__(self, parent):
+        super(SessionManager, self).__init__(parent)
         self.wrappers = {}
         self.sid = 0
 
@@ -112,7 +130,35 @@ class SessionManager(object):
         wrapper.session.shutdown()
         wrapper.session.delsession(wrapper.session)
 
-class NodeManager(object):
+class SessionWrapper(EventPublisher):
+    'Small wrapper around a session to handle HTTP methods.'
+
+    def __init__(self, session, manager):
+        super(SessionWrapper, self).__init__(manager)
+        self.session = session
+        self.manager = manager
+        self.nodes = NodeManager(session, self)
+
+    def _json_(self):
+        return {
+            'sid': self.session.sessionid,
+            'name': self.session.name,
+            'user': self.session.user,
+            'nodes': [n.objid for n in self.session.objs()]
+        }
+
+    @cherrypy.expose
+    def index(self):
+        if cherrypy.request.method == 'GET':
+            return json_dumps(self)
+
+        elif cherrypy.request.method == 'DELETE':
+            return self.manager.destroy_session(self)
+
+        else:
+            raise cherrypy.HTTPError(405)
+
+class NodeManager(EventPublisher):
     NODE_TYPES = {
         'default': pycore.nodes.CoreNode,
         'hub': pycore.nodes.HubNode,
@@ -122,7 +168,8 @@ class NodeManager(object):
         'wlan': pycore.nodes.WlanNode,
     }
 
-    def __init__(self, session):
+    def __init__(self, session, session_manager):
+        super(NodeManager, self).__init__(session_manager)
         self.session = session
         self.wrappers = {}
 
@@ -163,11 +210,14 @@ class NodeManager(object):
         self.wrappers.pop(wrapper.node.objid)
         self.session.delobj(wrapper.node.objid)
 
-class NodeWrapper(EventListener):
+class NodeWrapper(EventPublisher):
     def __init__(self, node, manager):
-        super(NodeWrapper, self).__init__()
+        super(NodeWrapper, self).__init__(manager)
         self.node = node
         self.manager = manager
+
+        self.path = 'sessions/{}/nodes/{}'.format(node.session.sessionid,
+                                                  node.objid)
 
     def _json_(self):
         return {
@@ -193,23 +243,15 @@ class NodeWrapper(EventListener):
             raise cherrypy.HTTPError(405)
 
     def update_node(self, req):
+        diff = {}
+
         if req.has_key('position'):
             x, y, z = map(int, req['position'])
             self.node.setposition(x, y, z)
+            diff['position'] = req['position']
 
-        self.publish_event(json_dumps(self))
+        self.publish_event(self.path, diff)
         return self
-
-class Root(object):
-    def __init__(self):
-        self.sessions = SessionManager()
-
-    @cherrypy.expose
-    def index(self):
-        path = os.path.join(os.path.abspath(os.path.split(__file__)[0]),
-                            'static', 'index.html')
-        return cherrypy.lib.static.serve_file(path)
-
 
 class CoreJSONEncoder(json.JSONEncoder):
     def default(self, o):
