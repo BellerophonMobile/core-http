@@ -11,6 +11,10 @@ import cherrypy
 from core import pycore
 
 class EventPublisher(object):
+    TYPE_CREATED = 'created'
+    TYPE_MODIFIED = 'modified'
+    TYPE_DELETED = 'deleted'
+
     def __init__(self, parent=None):
         self.parent = parent
         # Condition for blocking the client threads
@@ -42,36 +46,40 @@ class EventPublisher(object):
         while True:
             with self.listener_cond:
                 self.listener_cond.wait()
-                msg = self.msg
-                path = self.path
+                data_dict = {
+                    'path': self.path,
+                    'msg': self.msg,
+                    'msg_type': self.msg_type,
+                }
 
-            if msg is None or path is None:
+            if data_dict['path'] is None:
                 break
 
-            if do_sse:
-                msg = json_dumps(msg)
-                data = ''.join('data: {}\n'.format(s) for s in msg.split('\n'))
-                data = 'event: {}\nid: {}\n{}\n'.format(path, i, data)
-                i += 1
+            data = json_dumps(data_dict)
 
-            else:
-                data = json_dumps({
-                    'path': path,
-                    'msg': msg,
-                })
+            if do_sse:
+                # Prefix each line with 'data:'
+                data = ''.join(map(
+                    lambda x: 'data: {}\n'.format(x), data.split('\n')))
+                # Put the event name and id numbers in front
+                # This puts a second \n at the end of the message to end
+                data = 'event: {}\nid: {}\n{}\n'.format(
+                        data_dict['msg_type'], i, data)
+                i += 1
 
             yield data
 
-    def publish_event(self, path, msg):
+    def publish_event(self, path, msg, msg_type):
         with self.listener_cond:
             self.path = path
             self.msg = msg
+            self.msg_type = msg_type
             self.listener_cond.notify_all()
             if self.parent:
-                self.parent.publish_event(path, msg)
+                self.parent.publish_event(path, msg, msg_type)
 
     def stop(self):
-        self.publish_event(None, None)
+        self.publish_event(None, None, None)
 
 class Root(EventPublisher):
     def __init__(self):
@@ -123,10 +131,13 @@ class SessionManager(EventPublisher):
         if req.has_key('user'):
             session.setuser(req['user'])
 
+        self.publish_event(wrapper.path, wrapper, EventPublisher.TYPE_CREATED)
+
         return wrapper
 
     def destroy_session(self, wrapper):
         self.wrappers.pop(wrapper.session.sessionid)
+        self.publish_event(wrapper.path, None, EventPublisher.TYPE_DELETED)
         wrapper.session.shutdown()
         wrapper.session.delsession(wrapper.session)
 
@@ -138,6 +149,8 @@ class SessionWrapper(EventPublisher):
         self.session = session
         self.manager = manager
         self.nodes = NodeManager(session, self)
+
+        self.path = 'sessions/{}'.format(self.session.sessionid)
 
     def _json_(self):
         return {
@@ -204,6 +217,8 @@ class NodeManager(EventPublisher):
 
         wrapper.update_node(req)
 
+        self.publish_event(wrapper.path, wrapper, EventPublisher.TYPE_CREATED)
+
         return wrapper
 
     def destroy_node(self, wrapper):
@@ -234,23 +249,21 @@ class NodeWrapper(EventPublisher):
             return json_dumps(self)
 
         elif cherrypy.request.method == 'POST':
-            return json_dumps(self.update_node(cherrypy.request.json))
+            rv = self.update_node(cherrypy.request.json)
+            self.publish_event(self.path, self, EventPublisher.TYPE_MODIFIED)
+            return json_dumps(rv)
 
         elif cherrypy.request.method == 'DELETE':
+            self.publish_event(self.path, None, EventPublisher.TYPE_DELETED)
             return self.manager.destroy_node(self)
 
         else:
             raise cherrypy.HTTPError(405)
 
     def update_node(self, req):
-        diff = {}
-
         if req.has_key('position'):
             x, y, z = map(int, req['position'])
             self.node.setposition(x, y, z)
-            diff['position'] = req['position']
-
-        self.publish_event(self.path, diff)
         return self
 
 class CoreJSONEncoder(json.JSONEncoder):
