@@ -260,11 +260,31 @@ class NodeWrapper(EventPublisher):
         else:
             raise cherrypy.HTTPError(405)
 
+    @cherrypy.expose
+    def execute(self):
+        print(0)
+        if cherrypy.request.method != 'POST':
+            raise cherrypy.HTTPError(405)
+
+        print(1)
+        req = cherrypy.request.json
+
+        cmd = req['command']
+        print(2)
+        status, output = self.node.cmdresult(cmd)
+        print(3)
+        return json_dumps({
+            'command': cmd,
+            'status': status,
+            'output': output,
+        })
+
     def update_node(self, req):
         if req.has_key('position'):
             x, y, z = map(int, req['position'])
             self.node.setposition(x, y, z)
         return self
+
 
 class CoreJSONEncoder(json.JSONEncoder):
     def default(self, o):

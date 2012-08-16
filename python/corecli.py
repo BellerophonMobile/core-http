@@ -145,9 +145,10 @@ class SelectedNode(Cli):
     def do_help(self, *args):
         print('\n'.join((
             'Usage: {0} session {1} node get {2} COMMAND',
-            '  node {2} help                  This help',
-            '  node {2} position get          Get current position',
-            '  node {2} position set X Y Z    Set current position',
+            '  node {2} help                        This help',
+            '  node {2} position get                Get current position',
+            '  node {2} position set X Y Z          Set current position',
+            '  node {2} execute <command> [args...] Execute a command on node',
         )).format(sys.argv[0], self.sid, self.nid))
 
     def do_position(self, action, x=0, y=0, z=0):
@@ -158,6 +159,11 @@ class SelectedNode(Cli):
         else:
             print('Error: Invalid action "{}".  [get|set]'.format(action))
             return 1
+
+    def do_execute(self, *args):
+        out = self.node.execute(args)
+        print(out['output'])
+        return out['status']
 
 class Link(Cli):
     def __init__(self, sid):

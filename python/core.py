@@ -97,6 +97,13 @@ class Node(object):
         r = self.req.post(self.url, data=data)
         self._position = tuple(map(int, r.json['position']))
 
+    def execute(self, cmd):
+        data = json_dumps({
+            'command': cmd,
+        })
+        r = self.req.post(self.url + 'execute', data=data)
+        return r.json
+
     sid = property(lambda self: self._sid)
     nid = property(lambda self: self._nid)
     name = property(lambda self: self._name)
