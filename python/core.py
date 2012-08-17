@@ -35,7 +35,7 @@ class Daemon(object):
             'name': name,
             'user': user,
         })
-        r = self.req.post(make_url(self.address, 'sessions'), data=data)
+        r = self.req.post(make_url(self.address, 'sessions', '/'), data=data)
         return Session(self.address, self.req, r.json)
 
 class Session(object):
@@ -47,16 +47,17 @@ class Session(object):
         self._name = json['name']
         self._user = json['user']
 
+        self.url = make_url(self.address, 'sessions', self.sid, '/')
+
     def delete(self):
-        r = self.req.delete(make_url(self.address, 'sessions', self.sid))
+        r = self.req.delete(self.url)
 
     def nodes(self):
-        r = self.req.get(make_url(self.address, 'sessions', self.sid, 'nodes'))
+        r = self.req.get(make_url(self.url, 'nodes'))
         return [Node(self.address, self.req, json) for json in r.json]
 
     def get_node(self, nid):
-        r = self.req.get(
-                make_url(self.address, 'sessions', self.sid, 'nodes', nid))
+        r = self.req.get(make_url(self.url, 'nodes', nid))
         return Node(self.address, self.req, r.json)
 
     def new_node(self, ntype, name, x, y, z):
@@ -65,8 +66,7 @@ class Session(object):
             'name': name,
             'position': tuple(map(int, (x, y, z))),
         })
-        r = self.req.post(make_url(self.address, 'sessions', self.sid,
-                                   'nodes'), data=data)
+        r = self.req.post(make_url(self.url, 'nodes', '/'), data=data)
         return Node(self.address, self.req, r.json)
 
     sid = property(lambda self: self._sid, doc='Session ID')
@@ -110,11 +110,14 @@ class Node(object):
     ntype = property(lambda self: self._type)
     position = property(lambda self: self._position, set_position)
 
-def make_url(*args, **kwargs):
-    url = '/'.join(map(str, args))
-    if kwargs.get('endslash', True) and url[-1] != '/':
-        url += '/'
-    return url
+def make_url(*args):
+    parts = map(str, args)
+    parts = [x[:-1] if x.endswith('/') else x for x in parts[:-1]]
+    if args[-1] == '/':
+        parts.append('')
+    else:
+        parts.append(str(args[-1]))
+    return '/'.join(parts)
 
 def json_dumps(x):
     return json.dumps(x, separators=(',', ':'))
