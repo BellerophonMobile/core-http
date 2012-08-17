@@ -9,6 +9,7 @@ import threading
 
 import cherrypy
 from core import pycore
+from core.api import coreapi
 
 class EventPublisher(object):
     TYPE_CREATED = 'created'
@@ -131,6 +132,8 @@ class SessionManager(EventPublisher):
         if req.has_key('user'):
             session.setuser(req['user'])
 
+        wrapper.update_session(req)
+
         self.publish_event(wrapper.path, wrapper, EventPublisher.TYPE_CREATED)
 
         return wrapper
@@ -153,10 +156,13 @@ class SessionWrapper(EventPublisher):
         self.path = 'sessions/{}'.format(self.session.sessionid)
 
     def _json_(self):
+        state_str = coreapi.event_types[self.session.getstate()]
+        state_str = ' '.join(state_str.split('_')[2:-1]).lower()
         return {
             'sid': self.session.sessionid,
             'name': self.session.name,
             'user': self.session.user,
+            'state': state_str,
             'nodes': [n.objid for n in self.session.objs()]
         }
 
@@ -165,11 +171,24 @@ class SessionWrapper(EventPublisher):
         if cherrypy.request.method == 'GET':
             return json_dumps(self)
 
+        elif cherrypy.request.method == 'POST':
+            rv = self.update_session(cherrypy.request.json)
+            self.publish_event(self.path, self, EventPublisher.TYPE_MODIFIED)
+            return json_dumps(rv)
+
         elif cherrypy.request.method == 'DELETE':
+            self.publish_event(self.path, None, EventPublisher.TYPE_DELETED)
             return self.manager.destroy_session(self)
 
         else:
             raise cherrypy.HTTPError(405)
+
+    def update_session(self, req):
+        if req.has_key('state'):
+            state = getattr(coreapi,
+                    'CORE_EVENT_{}_STATE'.format(req['state']).upper())
+            self.session.setstate(state)
+        return self
 
 class NodeManager(EventPublisher):
     NODE_TYPES = {
