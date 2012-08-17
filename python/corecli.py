@@ -50,7 +50,7 @@ class Session(Cli):
             '  session list                List all active sessions',
             '  session new NAME USER       Create a new session',
             '  session del ID              Destroys a session',
-            '  session ID [...]        Interact with a particular session',
+            '  session ID [...]            Interact with a particular session',
         )).format(sys.argv[0]))
 
     @staticmethod
@@ -61,9 +61,10 @@ class Session(Cli):
             return
 
         print('{} active sessions'.format(len(sessions)))
-        print('ID\tName\tOwner')
+        print('ID\tName\tOwner\tState')
         for session in sessions:
-            print('{}\t{}\t{}'.format(session.sid, session.name, session.user))
+            print('{}\t{}\t{}\t{}'.format(session.sid, session.name,
+                                          session.user, session.state))
 
     @staticmethod
     def do_new(name, user):
@@ -80,26 +81,29 @@ class Session(Cli):
 
 class SelectedSession(Cli):
     def __init__(self, sid):
-        self.sid = sid
+        self.session = Daemon().get_session(sid)
 
     def do_help(self, *args):
         print('\n'.join((
             'Usage: {0} session {1} OBJECT',
             '  session {1} help            This help',
+            '  session {1} state <state>   Set the state of this session'
             '  session {1} node            Manipulate nodes of this session',
             '  session {1} link            Manipulate links of this session',
         )).format(sys.argv[0], self.sid))
 
     def do_node(self, *args):
-        return Node(self.sid).run(*args)
+        return Node(self.session).run(*args)
 
     def do_link(self, *args):
-        return Link(self.sid).run(*args)
+        return Link(self.session).run(*args)
+
+    def do_state(self, state):
+        self.session.state = state
 
 class Node(Cli):
-    def __init__(self, sid):
-        self.sid = sid
-        self.session = Daemon().get_session(self.sid)
+    def __init__(self, session):
+        self.session = session
 
     def do_help(self, *args):
         print('\n'.join((
@@ -111,7 +115,7 @@ class Node(Cli):
             '  node ID [...]           Interact with a particular node',
             '',
             'Types: default, wlan',
-        )).format(sys.argv[0], self.sid))
+        )).format(sys.argv[0], self.session.sid))
 
     def do_list(self):
         nodes = self.session.nodes()
@@ -133,14 +137,12 @@ class Node(Cli):
         self.session.get_node(nid).delete()
 
     def default(self, nid, *args):
-        return SelectedNode(self.sid, nid, self.session).run(*args)
+        return SelectedNode(self.session, nid).run(*args)
 
 class SelectedNode(Cli):
-    def __init__(self, sid, nid, session):
-        self.sid = sid
-        self.nid = nid
+    def __init__(self, session, nid):
         self.session = session
-        self.node = self.session.get_node(self.nid)
+        self.node = self.session.get_node(nid)
 
     def do_help(self, *args):
         print('\n'.join((
@@ -149,7 +151,7 @@ class SelectedNode(Cli):
             '  node {2} position get                Get current position',
             '  node {2} position set X Y Z          Set current position',
             '  node {2} execute <command> [args...] Execute a command on node',
-        )).format(sys.argv[0], self.sid, self.nid))
+        )).format(sys.argv[0], self.session.sid, self.node.nid))
 
     def do_position(self, action, x=0, y=0, z=0):
         if action == 'get':

@@ -46,6 +46,7 @@ class Session(object):
         self._sid = json['sid']
         self._name = json['name']
         self._user = json['user']
+        self._state = json['state']
 
         self.url = make_url(self.address, 'sessions', self.sid, '/')
 
@@ -69,9 +70,16 @@ class Session(object):
         r = self.req.post(make_url(self.url, 'nodes', '/'), data=data)
         return Node(self.address, self.req, r.json)
 
-    sid = property(lambda self: self._sid, doc='Session ID')
-    name = property(lambda self: self._name, doc='Session Name')
-    user = property(lambda self: self._user, doc='Session Owner')
+    def set_state(self, state):
+        data = json_dumps({
+            'state': state,
+        })
+        r = self.req.post(self.url, data=data)
+
+    sid = property(lambda self: self._sid)
+    name = property(lambda self: self._name)
+    user = property(lambda self: self._user)
+    state = property(lambda self: self._state, set_state)
 
 class Node(object):
     def __init__(self, address, req, json):
