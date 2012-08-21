@@ -87,16 +87,16 @@ class SelectedSession(Cli):
         print('\n'.join((
             'Usage: {0} session {1} OBJECT',
             '  session {1} help            This help',
-            '  session {1} state <state>   Set the state of this session'
+            '  session {1} state <state>   Set the state of this session',
             '  session {1} node            Manipulate nodes of this session',
-            '  session {1} link            Manipulate links of this session',
-        )).format(sys.argv[0], self.sid))
+            '  session {1} link <nid> <nid_a> <ifid_a> Link two nodes together',
+        )).format(sys.argv[0], self.session.sid))
 
     def do_node(self, *args):
         return Node(self.session).run(*args)
 
-    def do_link(self, *args):
-        return Link(self.session).run(*args)
+    def do_link(self, nid, nid_a, ifid_a):
+        self.session.link(nid, nid_a, ifid_a)
 
     def do_state(self, state):
         self.session.state = state
@@ -147,20 +147,36 @@ class SelectedNode(Cli):
     def do_help(self, *args):
         print('\n'.join((
             'Usage: {0} session {1} node get {2} COMMAND',
-            '  node {2} help                        This help',
-            '  node {2} position get                Get current position',
-            '  node {2} position set X Y Z          Set current position',
-            '  node {2} execute <command> [args...] Execute a command on node',
+            '  node {2} help                          This help',
+            '  node {2} info                          List information about node',
+            '  node {2} position X Y Z                Set current position',
+            '  node {2} netif new <nid> <addr>/<mask> Create a new network interface',
+            '  node {2} execute <command> [args...]   Execute a command on node',
         )).format(sys.argv[0], self.session.sid, self.node.nid))
 
-    def do_position(self, action, x=0, y=0, z=0):
-        if action == 'get':
-            print('{0[0]}, {0[1]}, {0[2]}'.format(self.node.position))
-        elif action == 'set':
-            self.node.position = (x, y, z)
+    def do_info(self):
+        print('ID:', self.node.nid)
+        print('Name:', self.node.name)
+        print('Type:', self.node.ntype)
+        print('Position: ({}, {}, {})'.format(*self.node.position))
+        for iface in self.node.interfaces:
+            print('Interface:', iface['ifindex'])
+            print('    Name:', iface['name'])
+            print('    MTU:', iface['mtu'])
+            print('    MAC:', iface['hwaddr'])
+            print('    Addresses:')
+            for address in iface['addresses']:
+                print('       ', address)
+
+    def do_position(self, x=0, y=0, z=0):
+        self.node.position = (x, y, z)
+
+    def do_netif(self, action, *args):
+        if action == 'new':
+            nid, addr = args
+            self.node.new_netif(nid, addr)
         else:
-            print('Error: Invalid action "{}".  [get|set]'.format(action))
-            return 1
+            printf('Error: Invalid action "{}". [new]'.format(action))
 
     def do_execute(self, *args):
         out = self.node.execute(args)

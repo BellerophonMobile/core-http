@@ -76,6 +76,14 @@ class Session(object):
         })
         r = self.req.post(self.url, data=data)
 
+    def do_link(self, nid, nid_a, ifid_a):
+        data = json_dumps({
+            'nid': nid,
+            'nid_a': nid_a,
+            'ifid_a': ifid_a,
+        })
+        r = self.req.post(make_url(self.url, 'links', '/'), data=data)
+
     sid = property(lambda self: self._sid)
     name = property(lambda self: self._name)
     user = property(lambda self: self._user)
@@ -92,8 +100,10 @@ class Node(object):
         self._type = json['type']
         self._position = tuple(map(int, json['position']))
 
+        self._interfaces = json.get('interfaces', None)
+
         self.url = make_url(
-                self.address, 'sessions', self.sid, 'nodes', self.nid)
+                self.address, 'sessions', self.sid, 'nodes', self.nid, '/')
 
     def delete(self):
         r = self.req.delete(self.url)
@@ -109,7 +119,19 @@ class Node(object):
         data = json_dumps({
             'command': cmd,
         })
-        r = self.req.post(self.url + 'execute', data=data)
+        r = self.req.post(make_url(self.url, 'execute', '/'), data=data)
+        return r.json
+
+    def new_netif(self, nid, address):
+        data = json_dumps({
+            'interfaces': [
+                {
+                    'net': nid,
+                    'addresses': [address],
+                },
+            ],
+        })
+        r = self.req.post(self.url, data=data)
         return r.json
 
     sid = property(lambda self: self._sid)
@@ -117,15 +139,23 @@ class Node(object):
     name = property(lambda self: self._name)
     ntype = property(lambda self: self._type)
     position = property(lambda self: self._position, set_position)
+    interfaces = property(lambda self: self._interfaces)
 
-def make_url(*args):
+def make_url(*args, **kwargs):
     parts = map(str, args)
     parts = [x[:-1] if x.endswith('/') else x for x in parts[:-1]]
     if args[-1] == '/':
         parts.append('')
     else:
         parts.append(str(args[-1]))
-    return '/'.join(parts)
+    url = '/'.join(parts)
+
+    if kwargs.has_key('params'):
+        url += '?'
+        url += '&'.join(['{}={}'.format(key, value)
+            for key, value in kwargs['params'].items()])
+
+    return url
 
 def json_dumps(x):
     return json.dumps(x, separators=(',', ':'))
