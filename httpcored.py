@@ -6,6 +6,7 @@ import json
 import os
 import sys
 import threading
+import time
 
 import cherrypy
 
@@ -188,6 +189,14 @@ class SessionWrapper(EventPublisher):
         else:
             raise cherrypy.HTTPError(405)
 
+    @cherrypy.expose
+    def links(self):
+        if cherrypy.request.method == 'POST':
+            return self.new_link(cherrypy.request.json)
+
+        else:
+            raise cherrypy.HTTPError(405)
+
     def update_session(self, req):
         if req.has_key('state'):
             state = getattr(coreapi,
@@ -224,6 +233,16 @@ class SessionWrapper(EventPublisher):
                 if isinstance(n, pycore.nodes.RJ45Node):
                     continue
                 n.validate()
+
+    def new_link(self, req):
+        nid = int(req['nid'])
+        nid_a = int(req['nid_a'])
+        ifid_a = int(req['ifid_a'])
+
+        net = self.nodes.wrappers[nid].node
+        a = self.nodes.wrappers[nid_a].node
+
+        net.link(a.netif(ifid_a), b.netif(ifid_b))
 
 class NodeManager(EventPublisher):
     NODE_TYPES = {
@@ -297,13 +316,24 @@ class NodeWrapper(EventPublisher):
                                                   node.objid)
 
     def _json_(self):
-        return {
+        rv = {
             'nid': self.node.objid,
             'name': self.node.name,
             'type': str(type(self.node)),
             'sid': self.node.session.sessionid,
             'position': self.node.position.get(),
         }
+
+        if hasattr(self.node, 'getifindex'):
+            rv['interfaces'] = [{
+                'ifindex': self.node.getifindex(i),
+                'name': i.name,
+                'mtu': i.mtu,
+                'addresses': i.addrlist,
+                'hwaddr': i.hwaddr,
+            } for i in self.node.netifs()]
+
+        return rv
 
     @cherrypy.expose
     def index(self):
@@ -341,8 +371,15 @@ class NodeWrapper(EventPublisher):
         if req.has_key('position'):
             x, y, z = map(int, req['position'])
             self.node.setposition(x, y, z)
-        return self
 
+        if req.has_key('interfaces'):
+            for iface in req['interfaces']:
+                ifindex = iface.get('ifindex', None)
+                net = int(iface['net'])
+                addresses = iface['addresses']
+                self.node.newnetif(self.manager.wrappers[net].node, addresses)
+
+        return self
 
 class CoreJSONEncoder(json.JSONEncoder):
     def default(self, o):
