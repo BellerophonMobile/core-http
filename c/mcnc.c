@@ -5,7 +5,7 @@
  * Binds to a particular network address/port, and sends anything received on
  * stdin to the specified address/port.  Prints anything received to stdout.
  *
- * Currently only supports sending strings over UDP.  Each null-terminated
+ * Currently only supports sending strings over UDP.  Each newline-separated
  * string is sent its own packet.
  */
 
@@ -158,15 +158,15 @@ static bool read_stdin(const struct sockaddr_in *sa, int fd,
     }
     send_buffer->offset += num_recv;
 
-    char *nullterm;
+    char *newline;
     do {
-        nullterm = memchr(send_buffer->buffer, 0, send_buffer->offset);
-        if (nullterm == NULL) {
+        newline = memchr(send_buffer->buffer, '\n', send_buffer->offset);
+        if (newline == NULL) {
             break;
         }
 
         size_t num_sent = sendto(fd, send_buffer->buffer,
-                                 nullterm - send_buffer->buffer + 1, 0,
+                                 newline - send_buffer->buffer + 1, 0,
                                  (struct sockaddr*)sa, sizeof(*sa));
         if (num_sent <= 0) {
             LOG_ERR("Failed to send to socket");
