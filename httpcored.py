@@ -8,6 +8,8 @@ import sys
 import threading
 
 import cherrypy
+
+import core.mobility
 from core import pycore
 from core.api import coreapi
 
@@ -153,6 +155,9 @@ class SessionWrapper(EventPublisher):
         self.manager = manager
         self.nodes = NodeManager(session, self)
 
+        # This should probably go into the session class
+        self.session.node_count = 0
+
         self.path = 'sessions/{}'.format(self.session.sessionid)
 
     def _json_(self):
@@ -187,8 +192,38 @@ class SessionWrapper(EventPublisher):
         if req.has_key('state'):
             state = getattr(coreapi,
                     'CORE_EVENT_{}_STATE'.format(req['state']).upper())
-            self.session.setstate(state)
+            if state == coreapi.CORE_EVENT_INSTANTIATION_STATE:
+                # This is from cored.py handleeventmessage
+                self.session.broker.startup()
+                self.session.mobility.startup()
+                self.boot_nodes()
+                time.sleep(0.125)
+                self.validate_nodes()
+                self.session.checkruntime()
+            else:
+                self.session.setstate(state)
         return self
+
+    def boot_nodes(self):
+        self.session._objslock.acquire()
+        for n in self.session.objs():
+            if not isinstance(n, pycore.nodes.PyCoreNode):
+                continue
+            if isinstance(n, pycore.nodes.RJ45Node):
+                continue
+            n.boot()
+        self.session._objslock.release()
+
+    def validate_nodes(self):
+        with self.session._objslock:
+            for n in self.session.objs():
+                # TODO: this can be extended to validate everything
+                # such as vnoded process, bridges, etc.
+                if not isinstance(n, pycore.nodes.PyCoreNode):
+                    continue
+                if isinstance(n, pycore.nodes.RJ45Node):
+                    continue
+                n.validate()
 
 class NodeManager(EventPublisher):
     NODE_TYPES = {
@@ -231,6 +266,11 @@ class NodeManager(EventPublisher):
                 objid=len(list(self.session.objs())),
                 name=name)
 
+        if cls == NodeManager.NODE_TYPES['wlan']:
+            self.session.mobility.setconfig(node.objid,
+                    core.mobility.BasicRangeModel._name,
+                    core.mobility.BasicRangeModel.getdefaultvalues())
+
         wrapper = NodeWrapper(node, self)
         self.wrappers[node.objid] = wrapper
 
@@ -238,11 +278,14 @@ class NodeManager(EventPublisher):
 
         self.publish_event(wrapper.path, wrapper, EventPublisher.TYPE_CREATED)
 
+        self.session.node_count += 1
+
         return wrapper
 
     def destroy_node(self, wrapper):
         self.wrappers.pop(wrapper.node.objid)
         self.session.delobj(wrapper.node.objid)
+        self.session.node_count -= 1
 
 class NodeWrapper(EventPublisher):
     def __init__(self, node, manager):
