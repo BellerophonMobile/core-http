@@ -4,9 +4,14 @@
     Author: Tom Wambold <tom5760@gmail.com>
 '''
 
+from __future__ import print_function
+
 import json
+import socket
+import threading
 
 import requests
+from ws4py.client.threadedclient import WebSocketClient
 
 class Daemon(object):
     DEFAULT_ADDRESS = 'http://localhost:8080'
@@ -122,6 +127,13 @@ class Node(object):
         r = self.req.post(make_url(self.url, 'execute', '/'), data=data)
         return r.json
 
+    def socket(self, address, port, f):
+        url = make_url(self.url, 'socket',
+                params={'address': address, 'port': port})
+        print('URL:', url)
+        ws = CoreWebSocketClient(f, url)
+        ws.connect()
+
     def new_netif(self, nid, address):
         data = json_dumps({
             'interfaces': [
@@ -140,6 +152,31 @@ class Node(object):
     ntype = property(lambda self: self._type)
     position = property(lambda self: self._position, set_position)
     interfaces = property(lambda self: self._interfaces)
+
+class CoreWebSocketClient(WebSocketClient):
+    def __init__(self, f, *args, **kwargs):
+        super(CoreWebSocketClient, self).__init__(*args, **kwargs)
+        self.f = f
+        self.reader_thread = threading.Thread(target=self.send_messages,
+                                         name='websocket')
+        self.reader_thread.daemon = True
+
+    def opened(self):
+        print('Connection opened')
+        self.reader_thread.start()
+
+    def closed(self, code, reason=None):
+        print('Connection closed')
+
+    def received_message(self, m):
+        print('Message:', m)
+
+    def send_messages(self):
+        for line in self.f:
+            msg = line.strip()
+            print('SENDING MESSAGE: "{}"'.format(msg))
+            self.send(msg)
+        self.close()
 
 def make_url(*args, **kwargs):
     parts = map(str, args)

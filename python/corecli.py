@@ -152,6 +152,7 @@ class SelectedNode(Cli):
             '  node {2} position X Y Z                Set current position',
             '  node {2} netif new <nid> <addr>/<mask> Create a new network interface',
             '  node {2} execute <command> [args...]   Execute a command on node',
+            '  node {2} socket <addr> <port>          Open a socket on a node',
         )).format(sys.argv[0], self.session.sid, self.node.nid))
 
     def do_info(self):
@@ -182,6 +183,9 @@ class SelectedNode(Cli):
         out = self.node.execute(args)
         print(out['output'])
         return out['status']
+
+    def do_socket(self, address, port):
+        self.node.socket(address, port, sys.stdin)
 
 class Link(Cli):
     def __init__(self, sid):

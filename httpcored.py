@@ -4,11 +4,15 @@ from __future__ import print_function
 
 import json
 import os
+import subprocess
 import sys
 import threading
 import time
 
 import cherrypy
+
+from ws4py.server.cherrypyserver import WebSocketPlugin, WebSocketTool
+from ws4py.websocket import WebSocket
 
 import core.mobility
 from core import pycore
@@ -84,6 +88,51 @@ class EventPublisher(object):
 
     def stop(self):
         self.publish_event(None, None, None)
+
+class CoreWebSocket(WebSocket):
+    def opened(self):
+        print('OPENED')
+        self.input_write = None
+        self.output_read = None
+        self.start_socket()
+
+    def closed(self, code, reason=None):
+        print('CLOSED')
+        print(self.output_read, type(self.output_read))
+        os.close(self.output_read)
+        os.close(self.input_write)
+
+    def received_message(self, message):
+        print('MESSAGE: "{}"'.format(message))
+        if self.input_write:
+            os.write(self.input_write, str(message) + '\n')
+
+    def set_socket(self, node, address, port):
+        self.node = node
+        self.address = address
+        self.port = port
+
+    def start_socket(self):
+        input_read, input_write = os.pipe()
+        output_read, output_write = os.pipe()
+
+        self.input_write = input_write
+        self.output_read = output_read
+
+        args = ('/home/tom/code/core-http/c/mcnc', self.address, self.port,
+                self.address, self.port)
+        self.node.redircmd(input_read, output_write, output_write, args, False)
+
+        self.proc_thread = threading.Thread(
+                target=self.read_proc, name='reader')
+        self.proc_thread.daemon = True
+        self.proc_thread.start()
+
+    def read_proc(self):
+        read_file = os.fdopen(self.output_read, 'r')
+        for line in read_file:
+            print('LINE:', line)
+            self.send(line)
 
 class Root(EventPublisher):
     def __init__(self):
@@ -367,6 +416,12 @@ class NodeWrapper(EventPublisher):
             'output': output,
         })
 
+    @cherrypy.expose
+    def socket(self, address, port):
+        cherrypy.request.ws_handler.set_socket(self.node, address, port)
+    socket._cp_config = {'tools.websocket.on': True,
+                         'tools.websocket.handler_cls': CoreWebSocket}
+
     def update_node(self, req):
         if req.has_key('position'):
             x, y, z = map(int, req['position'])
@@ -395,6 +450,9 @@ def json_dumps(x):
     return json.dumps(x, separators=(',', ':'), cls=CoreJSONEncoder)
 
 def main(argv):
+    WebSocketPlugin(cherrypy.engine).subscribe()
+    cherrypy.tools.websocket = WebSocketTool()
+
     root = Root()
 
     config = {
