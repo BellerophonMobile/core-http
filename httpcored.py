@@ -324,17 +324,13 @@ class NodeWrapper(EventPublisher):
 
     @cherrypy.expose
     def execute(self):
-        print(0)
         if cherrypy.request.method != 'POST':
             raise cherrypy.HTTPError(405)
 
-        print(1)
         req = cherrypy.request.json
 
         cmd = req['command']
-        print(2)
         status, output = self.node.cmdresult(cmd)
-        print(3)
         return json_dumps({
             'command': cmd,
             'status': status,
