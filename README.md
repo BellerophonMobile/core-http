@@ -15,14 +15,18 @@ Requirements
 
 * CORE should be installed to a location on PYTHONPATH
 * Requires [CherryPy][cherrypy-home] 3.2 (tested with 3.2.2)
+* Requires [ws4py][ws4py-home] (tested with 0.2.2)
 * Tested with Python 2.7.3
 * Download [Ext JS][extjs-home] (tested with version 4.1) and put in
   "static/extjs".
     * I didn't want to commit all of extjs while developing (over 200MB), I'll
       probably add only the required extjs files when the UI gets closer to
       being ready.
+* Also, run "make" inside the "c" directory to build the socket forwarding
+  program.
 
 [cherrypy-home]: http://www.cherrypy.org/
+[ws4py-home]: https://github.com/Lawouach/WebSocket-for-Python
 [extjs-home]: http://www.sencha.com/products/extjs/
 
 Client APIs
@@ -30,6 +34,7 @@ Client APIs
 
 ### Python Client API
 
-The Python client API requires the [requests][requests-home] module.
+The Python client API requires the [requests][requests-home] and the
+[ws4py][ws4py-home] modules.
 
 [requests-home]: http://docs.python-requests.org
