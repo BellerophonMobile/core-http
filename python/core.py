@@ -132,7 +132,12 @@ class Node(object):
                 params={'address': address, 'port': port})
         print('URL:', url)
         ws = CoreWebSocketClient(f, url)
-        ws.connect()
+        try:
+            ws.connect()
+            while not ws.terminated:
+                ws._th.join(1.0)
+        except KeyboardInterrupt:
+            ws.close()
 
     def new_netif(self, nid, address):
         data = json_dumps({
@@ -174,9 +179,10 @@ class CoreWebSocketClient(WebSocketClient):
     def send_messages(self):
         for line in self.f:
             msg = line.strip()
+            if len(msg) == 0:
+                continue
             print('SENDING MESSAGE: "{}"'.format(msg))
             self.send(msg)
-        self.close()
 
 def make_url(*args, **kwargs):
     parts = map(str, args)
