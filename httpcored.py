@@ -91,19 +91,13 @@ class EventPublisher(object):
 
 class CoreWebSocket(WebSocket):
     def opened(self):
-        print('OPENED')
-        self.input_write = None
-        self.output_read = None
         self.start_socket()
 
     def closed(self, code, reason=None):
-        print('CLOSED')
-        print(self.output_read, type(self.output_read))
-        os.close(self.output_read)
         os.close(self.input_write)
+        os.close(self.output_read)
 
     def received_message(self, message):
-        print('MESSAGE: "{}"'.format(message))
         if self.input_write:
             os.write(self.input_write, str(message) + '\n')
 
@@ -116,12 +110,17 @@ class CoreWebSocket(WebSocket):
         input_read, input_write = os.pipe()
         output_read, output_write = os.pipe()
 
-        self.input_write = input_write
-        self.output_read = output_read
-
         args = ('/home/tom/code/core-http/c/mcnc', self.address, self.port,
                 self.address, self.port)
-        self.node.redircmd(input_read, output_write, output_write, args, False)
+        print('Running command:', ' '.join(args))
+        cmd = self.node.redircmd(input_read, output_write,
+                                 sys.stderr.fileno(), args, False)
+
+        os.close(input_read)
+        os.close(output_write)
+
+        self.input_write = input_write
+        self.output_read = output_read
 
         self.proc_thread = threading.Thread(
                 target=self.read_proc, name='reader')
@@ -129,10 +128,15 @@ class CoreWebSocket(WebSocket):
         self.proc_thread.start()
 
     def read_proc(self):
-        read_file = os.fdopen(self.output_read, 'r')
-        for line in read_file:
-            print('LINE:', line)
-            self.send(line)
+        msg = ''
+        while True:
+            msg += os.read(self.output_read, 4096)
+            try:
+                i = msg.index('\n')
+            except ValueError:
+                continue
+            self.send(msg[:i])
+            msg = msg[i+1:]
 
 class Root(EventPublisher):
     def __init__(self):
