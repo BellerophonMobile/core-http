@@ -1,5 +1,5 @@
 /**
- * mcnc - MultiCast-aware NetCat like tool.
+ * mcnc - Multicast Core NetCat like tool.
  * Author: Tom Wambold <tom5760@gmail.com>
  *
  * Binds to a particular network address/port, and sends anything received on
@@ -141,6 +141,9 @@ static ssize_t read_socket(int fd, char *buffer, size_t len) {
     LOG_INFO("Received %zd bytes from %s:%d", (size_t)num_recv,
              inet_ntoa(recv_addr.sin_addr), ntohs(recv_addr.sin_port));
     printf("%.*s", (int)num_recv, buffer);
+    if (fflush(stdout) != 0) {
+        LOG_ERR("Failed to fsync output stream");
+    }
 
     return num_recv;
 }
